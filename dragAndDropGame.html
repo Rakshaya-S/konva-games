@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://vdo3.freckled.ai/IOAC_Assets/ioc/support_Files/confetti.js"></script>
+    <script src="https://vdo3.freckled.ai/IOAC_Assets/ioc/support_Files/konva.js"></script>
+    <script src="https://vdo3.freckled.ai/IOAC_Assets/ioc/support_Files/commonFunction.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'Comic Neue';
+            font-style: normal;
+            font-weight: 400;
+            src: url(https://fonts.gstatic.com/s/comicneue/v8/4UaHrEJDsxBrF37olUeD96rp5w.woff2) format('woff2');
+            unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <body onload="loadData()">
+        <div id="container"></div>
+        <script>
+            var stage = new Konva.Stage({
+                container: "container",
+                width: window.innerWidth,
+                height: window.innerHeight
+            });
+            var layer1 = new Konva.Layer();
+            var layer2 = new Konva.Layer();
+            var layer3 = new Konva.Layer();
+            stage.add(layer1, layer2, layer3);
+            var bgImg;
+            var playbutton;
+            var aud, dragImgWidth;
+            var statuscount;
+            var textaudio, finishBtn;
+            var sceneCount, qnaudio;
+            function loadData() {
+                window.addEventListener('message', handleMessage)
+            }
+            function handleMessage(event) {
+                gameObj = event.data;
+                score = gameObj.totalScore;
+                stage.width(gameObj.stageWidth);
+                stage.height(gameObj.stageHeight);
+                if (gameObj.recordingPath && gameObj.recordingPath !== undefined) {
+                    const objAssetId = gameObj.assetList.find((ele) => ele.className === "AnimationActivityProbAudio");
+                    console.log(gameObj.gameData[`qnArr${qnArrCount}`]);
+                    Object.assign(gameObj.gameData[`qnArr${qnArrCount - 1}`][0].text, { audioPath: gameObj.recordingPath, recordingId: gameObj.recordingId });
+                    delete gameObj.recordingPath;
+                    delete gameObj.recordingId;
+                    delete gameObj.assetId;
+                }
+                if (gameObj.operation === "Load Data") {
+                    start()
+                }
+                else if (gameObj.operation === 'GameStart') {
+                    var startImg = startImage();
+                    layer1.add(startImg);
+                    startImg.on("click tap", () => {
+                        startImg.remove();
+                        Object.assign(gameObj, { operation: 'GameStart', gameStart: true })
+                        window.parent.postMessage({ dataObj: gameObj }, "*");
+                        start()
+                    });
+                }
+            } var dragCount;
+            function start() {
+                statuscount = gameObj.gameData.statusCount;
+                sceneCount = gameObj.gameData.sceneCount;
+                clickCount = gameObj.gameData.clickCount;
+                dragCount = gameObj.gameData.dragCount;
+                bgImg = bgImageLoader(gameObj.gameData.bgImg.image);
+                layer1.add(bgImg);
+                if (statuscount == 0) {
+                    gameObj.gameData.gameStartPanel.map((d, i) => {
+                        if (d.image) {
+                            var gamestart = imageHandler(d.image, 0);
+                            layer2.add(gamestart);
+                        } else if (d.text) {
+                            sText = textHandler(d.text, 0)
+                            layer2.add(sText)
+                            textaudio = audioHandler(d.text.src, 0);
+                            textaudio.play();
+                        }
+                    })
+                    playbutton = imageHandler(gameObj.gameData.playBtn.image, 0);
+                    layer2.add(playbutton);
+                    playbutton.on('click tap', () => {
+                        textaudio.volume = 0;
+                        Object.assign(gameObj.gameData, { statusCount: 1 })
+                        gamePlay();
+                    })
+                } else if (statuscount == 1) {
+                    gamePlay();
+                } else {
+                    endGame();
+                }
+            }
+            var qnbg;
+            function gamePlay() {
+                layer2.destroyChildren();
+                layer3.destroyChildren();
+                qnbg = imageHandler(gameObj.gameData.qnBg.image, 0);
+                layer2.add(qnbg)
+                gameObj.gameData.picBg.image.positionList.map((d, i) => {
+                    qnbg = imageHandler(gameObj.gameData.picBg.image, i);
+                    layer2.add(qnbg);
+                })
+                var imgBg = imageHandler(gameObj.gameData.imgBackground.image, 0);
+                layer2.add(imgBg)
+                var question = textHandler(gameObj.gameData.question.text, 0);
+                layer2.add(question);
+                qnaudio = audioHandler(gameObj.gameData.question.text.src, 0);
+                if (sceneCount == 1) {
+                    qnaudio.play();
+                }
+
+                if (sceneCount == 6) {
+                    var img = imageHandler(gameObj.gameData.soccer.image, 1)
+                    layer3.add(img);
+                    var position = computeDimension(20, 20);
+                    var position1 = computeDimension(gameObj.gameData.soccer.image.positionList[2].x, gameObj.gameData.soccer.image.positionList[2].y)
+                    img.draggable(true);
+                    img.on("dragend", () => {
+                        if ((img.x() > position1[0] - position[0]) &&
+                            (img.x() < position1[0] + position[0] + img.width()) &&
+                            (img.y() > position1[1] - position[1]) &&
+                            (img.y() < position1[1] + position[1] + img.height())) {
+                            img.x(position1[0])
+                            img.y(position1[1])
+                            var tick = imageHandler(gameObj.gameData.tickImg.image, 0);
+                            layer2.add(tick)
+                            sceneCount++;
+                            Object.assign(gameObj.gameData, { sceneCount: sceneCount })
+                            setTimeout(() => {
+                                Object.assign(gameObj.gameData, { statusCount: 1 })
+                                gamePlay();
+                            }, 2000);
+                        }
+                        else {
+                            var imgXY = computeDimension(gameObj.gameData.soccer.image.positionList[1].x, gameObj.gameData.soccer.image.positionList[1].y);
+                            img.x(imgXY[0])
+                            img.y(imgXY[1])
+                        }
+                    })
+                }
+                gameObj.gameData[`scene${sceneCount}`].map((d, i) => {
+                    var tAud, pos1;
+                    if (d.text) {
+                        tAud = audioHandler(d.text.src);
+                        if (sceneCount == 1) {
+                            qnaudio.addEventListener("ended", () => {
+                                tAud.play();
+                            })
+                        }
+                        else {
+                            tAud.play();
+                        }
+                        layer2.add(textHandler(d.text, 0));
+
+                    }
+                    if (d.image) {
+                        if (d.image.status === true) {
+                            var images = imageHandler(d.image, 1);
+                            layer3.add(images)
+                            var tick = imageHandler(gameObj.gameData.tickImg.image, 0);
+                            layer2.add(tick)
+                            next();
+                        }
+                        else {
+                            var images = imageHandler(d.image, 0);
+                            layer3.add(images)
+                            images.moveToTop();
+                            images.draggable(true);
+                            var pos = computeDimension(20, 20);
+                            if (d.image.isAnswer) {
+                                pos1 = computeDimension(d.image.positionList[1].x, d.image.positionList[1].y);
+                            }
+                            else {
+                                pos1 = computeDimension(d.image.positionList[0].x, d.image.positionList[0].y);
+
+                            }
+                            images.on("dragend", () => {
+                                qnaudio.volume = 0;
+                                console.log(pos1[0], images.x(), pos[0], images.width());
+                                if ((images.x() > pos1[0] - pos[0]) &&
+                                    (images.x() < pos1[0] + pos[0] + images.width()) &&
+                                    (images.y() > pos1[1] - pos[1]) &&
+                                    (images.y() < pos1[1] + pos[1] + images.height())) {
+                                    images.x(pos1[0])
+                                    images.y(pos1[1])
+                                    Object.assign(gameObj.gameData[`scene${sceneCount}`][i].image, { status: true })
+                                    dragCount++;
+                                    Object.assign(gameObj.gameData, { dragCount: dragCount })
+                                    var tick = imageHandler(gameObj.gameData.tickImg.image, 0);
+                                    layer2.add(tick)
+                                    sceneCount++;
+                                    Object.assign(gameObj.gameData, { sceneCount: sceneCount })
+                                    next();
+
+                                } else {
+                                    var imgXY = computeDimension(d.image.positionList[0].x, d.image.positionList[0].y);
+                                    images.x(imgXY[0])
+                                    images.y(imgXY[1])
+                                }
+                            })
+                        }
+                    }
+
+                })
+            }
+            function next() {
+                setTimeout(() => {
+                    if (sceneCount < 11) {
+                        Object.assign(gameObj.gameData, { statusCount: 1 })
+                        gamePlay();
+                    } else {
+                        Object.assign(gameObj.gameData, { statusCount: 2 })
+                        endGame();
+                    }
+                }, 2000);
+            }
+            function endGame() {
+                layer2.destroyChildren();
+                layer3.destroyChildren();
+                gameObj.gameData.gameEndPanel.map((d) => {
+                    if (d.image) {
+                        var endimg = imageHandler(d.image, 0);
+                        Object.assign(gameObj.gameData, { gameCompleted: true })
+                        Object.assign(gameObj, { totalScore: 100 })
+                        layer2.add(endimg);
+                    }
+                    else if (d.text) {
+                        layer2.add(textHandler(d.text, 0));
+                        aud = audioHandler(d.text.src);
+                        aud.play();
+                    }
+                });
+            }
+            function imageHandler(data, i) {
+                var imgobj = new Image();
+                imgobj.src = data.src;
+                var wh = computeDimension(data.positionList[i].width, data.positionList[i].height);
+                var xy = computeDimension(data.positionList[i].x, data.positionList[i].y);
+                var image = new Konva.Image({
+                    image: imgobj,
+                    x: xy[0],
+                    y: xy[1],
+                    width: wh[0],
+                    height: wh[1]
+                });
+                return image;
+            }
+
+            function textHandler(txt, i) {
+                var wh = computeDimension(txt.positionList[i].width, txt.positionList[i].height);
+                var xy = computeDimension(txt.positionList[i].x, txt.positionList[i].y);
+                var fSize = computeDimension(txt.fontSize, 0);
+                var text = new Konva.Text({
+                    text: txt.text,
+                    x: xy[0],
+                    y: xy[1],
+                    width: wh[0],
+                    height: wh[1],
+                    fontSize: fSize[0],
+                    align: txt.textAlign,
+                    fontFamily: txt.fontFamily,
+                    fontStyle: txt.fontWeight,
+                    fill: txt.fill
+                });
+                return text;
+            }
+
+            function audioHandler(src) {
+                var audio = document.createElement("audio");
+                audio.src = src;
+                return audio;
+            }
+        </script>
+    </body>
+
+</html>
